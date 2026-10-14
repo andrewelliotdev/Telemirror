@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: telemirror
+    runtime: python
+    plan: starter # Change to free if using free tier (without persistent disk)
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: python main.py
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: WEB_HOST
+        value: 0.0.0.0
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ADMIN_PASSWORD
+        value: admin123
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: telemirror-data
+      mountPath: /var/data
+      sizeGB: 1
