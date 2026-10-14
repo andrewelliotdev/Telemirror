@@ -7,19 +7,71 @@ from typing import Dict, List, Any, Optional, Tuple
 
 logger = logging.getLogger("Database")
 
-DB_PATH = os.getenv("DB_PATH") or os.path.join(os.getenv("DATA_DIR", os.path.dirname(__file__)), "telemirror.db")
+def resolve_db_path() -> str:
+    """
+    Safely resolves the SQLite database path with full error tolerance.
+    Tries DB_PATH, then DATA_DIR, testing write permissions.
+    If unwritable or permissions denied (e.g. Render Free Tier without persistent disk),
+    gracefully falls back to the local app directory or /tmp without crashing.
+    """
+    candidates = []
+    
+    # 1. Explicit DB_PATH
+    env_db = os.getenv("DB_PATH")
+    if env_db and env_db.strip():
+        candidates.append(os.path.abspath(env_db.strip()))
+        
+    # 2. DATA_DIR/telemirror.db
+    env_data_dir = os.getenv("DATA_DIR")
+    if env_data_dir and env_data_dir.strip():
+        candidates.append(os.path.abspath(os.path.join(env_data_dir.strip(), "telemirror.db")))
+        
+    # 3. Local app directory default
+    local_dir = os.path.dirname(os.path.abspath(__file__))
+    candidates.append(os.path.join(local_dir, "telemirror.db"))
+    
+    for candidate in candidates:
+        cand_dir = os.path.dirname(candidate)
+        try:
+            os.makedirs(cand_dir, exist_ok=True)
+            # Verify write access by touching a temp check file
+            test_file = os.path.join(cand_dir, ".db_write_test")
+            with open(test_file, "w") as f:
+                f.write("1")
+            if os.path.exists(test_file):
+                os.remove(test_file)
+            return candidate
+        except Exception as e:
+            logger.warning(f"Database directory '{cand_dir}' is not writable ({e}). Trying fallback...")
+
+    # Last resort fallback: /tmp/telemirror.db (which is always writable in Linux/Render containers)
+    return "/tmp/telemirror.db"
+
+DB_PATH = resolve_db_path()
 
 class Database:
-    def __init__(self, db_path: str = DB_PATH):
+    def __init__(self, db_path: Optional[str] = None):
+        if not db_path:
+            db_path = resolve_db_path()
         self.db_path = db_path
-        os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(os.path.abspath(self.db_path)), exist_ok=True)
+        except Exception as e:
+            logger.warning(f"Failed to create db dir for {self.db_path}: {e}")
+            self.db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "telemirror.db")
         self._init_db()
 
     def get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path, timeout=15.0)
+        conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA foreign_keys=ON")
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+        except Exception:
+            pass
+        try:
+            conn.execute("PRAGMA foreign_keys=ON")
+        except Exception:
+            pass
         return conn
 
     def _init_db(self):

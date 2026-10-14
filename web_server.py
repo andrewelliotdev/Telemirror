@@ -968,22 +968,31 @@ def create_app() -> web.Application:
 
     return app
 
-async def start_web_server():
-    host = os.getenv("WEB_HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 10000))
+async def start_web_server(host: Optional[str] = None, port: Optional[int] = None):
+    if host is None:
+        host = os.getenv("WEB_HOST", "0.0.0.0")
+    if port is None:
+        port = int(os.getenv("PORT", 10000))
 
     app = create_app()
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, host, port)
     await site.start()
-    logger.info(f"🌐 TeleMirror running at http://{host}:{port}")
+    logger.info(f"🌐 TeleMirror web engine successfully listening at http://{host}:{port}")
 
-    while True:
-        await asyncio.sleep(3600)
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        pass
+    finally:
+        await runner.cleanup()
 
 if __name__ == "__main__":
+    host = os.getenv("WEB_HOST", "0.0.0.0")
+    port = int(os.getenv("PORT", 10000))
     try:
-        asyncio.run(start_web_server())
+        asyncio.run(start_web_server(host=host, port=port))
     except (KeyboardInterrupt, SystemExit):
         logger.info("TeleMirror server stopped.")

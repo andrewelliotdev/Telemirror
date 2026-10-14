@@ -13,9 +13,10 @@ logging.basicConfig(
 logger = logging.getLogger("Launcher")
 
 def get_local_ip() -> str:
-    """Helper to detect local LAN IP address."""
+    """Helper to detect local LAN IP address safely without blocking."""
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.5)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
@@ -34,7 +35,7 @@ def print_banner(host: str, port: int):
         print(f"   📱 LAN / Mobile:    http://{local_ip}:{port}")
     print(f"   📡 Host Binding:    http://{host}:{port}")
     print("-" * 62)
-    print("   💡 Open the link above in any browser to manage the bot.")
+    print("   💡 TeleMirror is ready to accept connections.")
     print("   🛑 Press Ctrl+C in this terminal to stop the server.")
     print(f"{border}\n", flush=True)
 
@@ -44,11 +45,11 @@ if __name__ == "__main__":
     import os
     web_cfg = settings_manager.get("web", {})
     host = os.getenv("WEB_HOST", web_cfg.get("host", "0.0.0.0"))
-    port = int(os.getenv("PORT", web_cfg.get("port", 8080)))
+    port = int(os.getenv("PORT", web_cfg.get("port", 10000)))
 
     print_banner(host, port)
 
     try:
-        asyncio.run(start_web_server())
+        asyncio.run(start_web_server(host=host, port=port))
     except (KeyboardInterrupt, SystemExit):
         print("\n👋 TeleMirror stopped cleanly.")

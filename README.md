@@ -36,42 +36,36 @@ git push -u origin main
 
 ---
 
-### 🚀 Step 3: Deploy on Render
+### 🚀 Step 3: Deploy to Render (Manual Web Service)
 
-#### Option A: One-Click Render Blueprint (Recommended)
 1. Go to [Render Dashboard](https://dashboard.render.com).
-2. Click **New +** -> **Blueprint**.
-3. Select your GitHub repository. Render will automatically detect [`render.yaml`](file:///data/data/com.termux/files/home/gov/render.yaml).
-4. Enter your environment variables:
-   - `SESSION_STRING`: *(Pasted from Step 1)*
-   - `API_ID`: *(Your Telegram API ID)*
-   - `API_HASH`: *(Your Telegram API Hash)*
-   - `PHONE_NUMBER`: *(Your phone number)*
-5. Click **Apply**. Render will build and deploy your app.
-
-#### Option B: Manual Web Service Setup
-1. On [Render Dashboard](https://dashboard.render.com), click **New +** -> **Web Service**.
-2. Connect your Git repository.
-3. Configure the service settings:
-   - **Name:** `telemirror` *(This gives you `telemirror.onrender.com`)*
-   - **Language:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
+2. Click **New +** -> **Web Service**.
+3. Connect your GitHub repository.
+4. Configure the Web Service settings:
+   - **Name:** `telemirror` (gives you `https://telemirror.onrender.com`)
+   - **Region:** Frankfurt (EU) or Oregon (US)
+   - **Branch:** `main`
+   - **Root Directory:** *(leave blank)*
+   - **Runtime:** `Python 3`
+   - **Build Command:** `pip install --upgrade pip && pip install -r requirements.txt`
    - **Start Command:** `python main.py`
-   - **Health Check Path:** `/healthz`
-4. In the **Environment Variables** section, add:
+   - **Instance Type:** `Free`
+5. Click **Advanced** -> **Health Check Path**:
+   - Set **Health Check Path** to `/healthz`
+6. (Optional) In **Environment Variables**, you can set:
    | Variable | Value | Description |
    |---|---|---|
-   | `PORT` | `10000` | Port automatically routed by Render |
-   | `SESSION_STRING` | *(Your StringSession)* | Enables headless login |
-   | `API_ID` | `21547934` | From https://my.telegram.org |
-   | `API_HASH` | `your_api_hash` | From https://my.telegram.org |
-   | `PHONE_NUMBER` | `+1234567890` | Account phone number |
-   | `COPY_MODE` | `clean_copy` | Fresh post (no forward tag) |
-   | `MIRROR_EDITS` | `true` | Syncs edited messages |
-5. Click **Create Web Service**.
+   | `ADMIN_PASSWORD` | `admin123` | Master admin password |
+   | `WEB_HOST` | `0.0.0.0` | Server host binding |
+   | `PORT` | `10000` | Port (Render sets this automatically) |
 
-Once deployed, access your live dashboard at:
-👉 **`https://telemirror.onrender.com`**
+7. Click **Create Web Service**.
+
+> [!TIP]
+> **Why did you previously see `Deploy Error: Service Unavailable`?**
+> 1. Render's Free tier does not support persistent disks (`/var/data`). TeleMirror now auto-detects write permissions and safely uses the local directory without crashing.
+> 2. Render requires `Start Command` to be `python main.py` (not the default gunicorn command).
+> 3. TeleMirror includes `.python-version` (3.11.9) and `gunicorn` in `requirements.txt` to guarantee clean installation.
 
 ---
 
